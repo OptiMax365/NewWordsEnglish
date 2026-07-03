@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>📖 Timeline Dictionary — Word Evolution Canvas</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; background: #0d1f0d; color: #e8f5e9; }
+
+  /* ===== TOP BAR ===== */
+  #topbar {
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 10px; background: linear-gradient(135deg, #1b5e20, #2e7d32);
+    border-bottom: 2px solid #66bb6a; z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    white-space: nowrap;
+    overflow-x: auto;
+  }
+  #topbar button, #topbar select, #topbar input {
+    padding: 4px 8px; border: 1px solid #66bb6a; border-radius: 5px;
+    background: #0d1f0d; color: #e8f5e9; cursor: pointer; font-size: 12px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  #topbar button:hover { background: #66bb6a; color: #0d1f0d; transform: translateY(-1px); }
+  #topbar input[type="text"] { cursor: text; min-width: 100px; padding: 4px 6px; }
+  #topbar input[type="color"] { width: 30px; height: 28px; padding: 1px; cursor: pointer; }
+  #topbar .sep { width: 1px; height: 20px; background: #66bb6a; margin: 0 2px; flex-shrink: 0; }
+  #topbar .group { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+  #topbar label { font-size: 11px; color: #a5d6a7; }
+  #status { margin-left: auto; font-size: 11px; color: #81c784; padding: 0 6px; flex-shrink: 0; }
+
+  /* ===== A-Z NAVIGATION ===== */
+  #az-nav {
+    display: flex; align-items: center; gap: 2px;
+    padding: 4px 10px; background: linear-gradient(135deg, #0d1f0d, #1b5e20);
+    border-bottom: 1px solid #66bb6a; z-index: 999;
+    overflow-x: auto;
+  }
+  #az-nav button {
+    padding: 3px 6px; border: 1px solid #66bb6a; border-radius: 4px;
+    background: #1b5e20; color: #e8f5e9; cursor: pointer; font-size: 11px;
+    font-weight: 600; transition: all 0.15s; min-width: 24px;
+  }
+  #az-nav button:hover { background: #66bb6a; color: #0d1f0d; transform: scale(1.1); }
+  #az-nav button.active { background: #4caf50; color: #fff; box-shadow: 0 0 8px rgba(76,175,80,0.8); }
+  #az-nav .sep { width: 1px; height: 16px; background: #66bb6a; margin: 0 4px; flex-shrink: 0; }
+
+  /* ===== CANVAS ===== */
+  #canvas-wrap {
+    flex: 1; position: relative; overflow: hidden; cursor: grab;
+  }
+  #canvas-wrap.panning { cursor: grabbing; }
+  #canvas {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    transform-origin: 0 0;
+  }
+
+  /* ===== DICTIONARY CARD ===== */
+  .dict-card {
+    position: absolute;
+    min-width: 450px; min-height: 400px;
+    background: rgb(16, 31, 0); color: #e8f5e9; 
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    border: 3px solid #66bb6a;
+    transition: border-color 0.15s;
+  }
+  .dict-card.selected { border-color: #4caf50; box-shadow: 0 0 0 3px #4caf50; }
+  .dict-card-header {
+    display: flex; align-items: center; gap: 4px;
+    padding: 8px 6px; background: rgba(27,94,32,0.25);
+    cursor: move; user-select: none;
+    border-bottom: 2px solid rgba(27,94,32,0.3);
+    min-height: 44px;
+  }
+  .dict-card-letter {
+    font-size: 28px; font-weight: 700; color: #4caf50;
+    text-shadow: 0 0 8px rgba(76,175,80,0.6);
+    padding: 0 8px;
+    min-width: 40px;
+    text-align: center;
+  }
+  .dict-card-title {
+    flex: 1; background: transparent; border: none; outline: none;
+    font-weight: 600; font-size: 13px; color: inherit;
+    padding: 2px 4px; border-radius: 3px;
+  }
+  .dict-card-title:focus { background: rgba(255,255,255,0.5); }
+  .dict-card-btn {
+    width: 26px; height: 26px; border: none; border-radius: 4px;
+    background: rgba(27,94,32,0.2); color: inherit; cursor: pointer;
+    font-size: 14px; display: flex; align-items: center; justify-content: center;
+  }
+  .dict-card-btn:hover { background: rgba(27,94,32,0.4); }
+
+  .dict-card-body {
+    flex: 1; padding: 10px; overflow: auto;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  /* TWO-COLUMN LAYOUT FOR TIMELINE SECTIONS */
+  .timeline-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  
+  .timeline-section {
+    background: rgba(27,94,32,0.1);
+    border: 1px solid rgba(102,187,106,0.3);
+    border-radius: 6px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
+  }
+  .timeline-section h4 {
+    font-size: 10px; color: #81c784; margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: 1px;
+    display: flex; align-items: center; gap: 4px;
+    flex-shrink: 0;
+  }
+  .timeline-section h4::before {
+    content: ''; display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; background: #66bb6a;
+  }
+  .timeline-section.after h4::before { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+  
+  .timeline-input {
+    flex: 1;
+    width: 100%; 
+    min-height: 150px;
+    padding: 6px 8px;
+    background: rgba(0,0,0,0.3); 
+    border: 1px solid rgba(102,187,106,0.2);
+    border-radius: 4px; 
+    color: #e8f5e9; 
+    font-size: 13px;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+    overflow-y: auto;
+  }
+  .timeline-input:focus { border-color: #66bb6a; background: rgba(0,0,0,0.4); }
+  .timeline-input::placeholder { color: #7cb342; font-style: italic; }
+
+  .notes-section {
+    background: rgba(27,94,32,0.05);
+    border: 1px solid rgba(102,187,106,0.2);
+    border-radius: 6px;
+    padding: 8px;
+    flex-shrink: 0;
+  }
+  .notes-section h4 {
+    font-size: 10px; color: #81c784; margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .notes-input {
+    width: 100%; min-height: 60px; padding: 6px 8px;
+    background: rgba(0,0,0,0.2); border: 1px solid rgba(102,187,106,0.15);
+    border-radius: 4px; color: #e8f5e9; font-size: 12px;
+    resize: vertical; outline: none;
+    font-family: inherit;
+  }
+  .notes-input:focus { border-color: #66bb6a; }
+
+  .resize-handle { position: absolute; background: transparent; z-index: 10; }
+  .resize-n { top: -4px; left: 8px; right: 8px; height: 8px; cursor: n-resize; }
+  .resize-s { bottom: -4px; left: 8px; right: 8px; height: 8px; cursor: s-resize; }
+  .resize-e { right: -4px; top: 8px; bottom: 8px; width: 8px; cursor: e-resize; }
+  .resize-w { left: -4px; top: 8px; bottom: 8px; width: 8px; cursor: w-resize; }
+  .resize-ne { top: -4px; right: -4px; width: 12px; height: 12px; cursor: ne-resize; }
+  .resize-nw { top: -4px; left: -4px; width: 12px; height: 12px; cursor: nw-resize; }
+  .resize-se { bottom: -4px; right: -4px; width: 12px; height: 12px; cursor: se-resize; background: linear-gradient(135deg, transparent 50%, #66bb6a 50%); border-bottom-right-radius: 6px; }
+  .resize-sw { bottom: -4px; left: -4px; width: 12px; height: 12px; cursor: sw-resize; }
+
+  /* ===== MASTER CARD STYLES ===== */
+  .master-card {
+    border: 3px solid #4caf50 !important;
+    box-shadow: 0 0 20px rgba(76,175,80,0.5) !important;
+  }
+  .master-card .dict-card-header {
+    background: rgba(76,175,80,0.3) !important;
+  }
+  .master-search-box {
+    display: flex; gap: 6px; margin-bottom: 8px; padding: 6px;
+    background: rgba(0,0,0,0.2); border-radius: 6px;
+  }
+  .master-search-input {
+    flex: 1; padding: 6px 10px; border: 1px solid #66bb6a;
+    border-radius: 4px; background: rgba(0,0,0,0.3); color: #e8f5e9;
+    outline: none;
+  }
+  .master-search-input:focus { border-color: #4caf50; }
+  .master-nav-btn {
+    padding: 6px 10px; background: #1b5e20; border: 1px solid #66bb6a;
+    border-radius: 4px; color: #e8f5e9; cursor: pointer;
+  }
+  .master-nav-btn:hover { background: #66bb6a; color: #0d1f0d; }
+  .master-nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .master-word-list {
+    flex: 1; overflow-y: auto; border: 1px solid rgba(102,187,106,0.3);
+    border-radius: 6px; background: rgba(0,0,0,0.2);
+    max-height: 400px;
+  }
+  .master-word-item {
+    padding: 8px 10px; border-bottom: 1px solid rgba(102,187,106,0.1);
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .master-word-item:hover { background: rgba(102,187,106,0.1); }
+  .master-word-item.highlighted {
+    background: rgba(76,175,80,0.3);
+    border-left: 3px solid #4caf50;
+  }
+  .master-word-pair { display: flex; gap: 10px; align-items: center; }
+  .master-word-before { color: #81c784; font-size: 12px; }
+  .master-word-arrow { color: #66bb6a; }
+  .master-word-after { color: #a5d6a7; font-weight: 600; font-size: 13px; }
+  .master-word-letter {
+    background: #4caf50; color: #0d1f0d; padding: 2px 6px;
+    border-radius: 4px; font-weight: 700; font-size: 11px;
+  }
+  .master-stats {
+    padding: 6px 10px; background: rgba(27,94,32,0.2);
+    font-size: 11px; color: #81c784; border-radius: 0 0 6px 6px;
+  }
+
+  /* ===== PASTE MODAL ===== */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    display: none; align-items: center; justify-content: center;
+    z-index: 5000;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #1b5e20; border: 2px solid #66bb6a; border-radius: 12px;
+    padding: 20px; min-width: 500px; max-width: 700px; max-height: 80vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+  }
+  .modal h2 { margin-bottom: 12px; color: #a5d6a7; }
+  .modal-body { flex: 1; overflow-y: auto; margin-bottom: 12px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal-actions button {
+    padding: 8px 16px; border: 1px solid #66bb6a; border-radius: 6px;
+    background: #0d1f0d; color: #e8f5e9; cursor: pointer;
+  }
+  .modal-actions button:hover { background: #66bb6a; color: #0d1f0d; }
+  .paste-textarea {
+    width: 100%; min-height: 200px; padding: 10px;
+    background: rgba(0,0,0,0.3); border: 1px solid #66bb6a;
+    border-radius: 6px; color: #e8f5e9; font-family: inherit;
+    font-size: 13px; resize: vertical; outline: none;
+  }
+  .paste-textarea:focus { border-color: #4caf50; }
+  .paste-info {
+    margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.2);
+    border-radius: 6px; font-size: 12px; color: #81c784;
+  }
+  .organize-stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin-top: 10px;
+  }
+  .stat-box {
+    padding: 10px; background: rgba(0,0,0,0.2);
+    border-radius: 6px; text-align: center;
+  }
+  .stat-number { font-size: 24px; font-weight: 700; color: #4caf50; }
+  .stat-label { font-size: 11px; color: #81c784; margin-top: 4px; }
+
+  /* ===== SEARCH RESULTS ===== */
+  #search-results {
+    position: fixed;
+    top: 110px;
+    right: 10px;
+    width: 350px;
+    max-height: 400px;
+    background: #1b5e20;
+    border: 2px solid #66bb6a;
+    border-radius: 8px;
+    z-index: 2000;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    display: none;
+    flex-direction: column;
+    color: #e8f5e9;
+  }
+  #search-results.show { display: flex; }
+  #search-results-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px; border-bottom: 1px solid #66bb6a;
+    font-weight: 600;
+  }
+  #search-results-header span { flex: 1; }
+  #search-results-header button {
+    padding: 4px 8px; font-size: 12px; border: 1px solid #66bb6a;
+    background: #0d1f0d; color: #e8f5e9; border-radius: 4px; cursor: pointer;
+  }
+  #search-results-list {
+    flex: 1; overflow-y: auto; padding: 6px;
+  }
+  .search-item {
+    padding: 8px; margin: 4px 0; background: #0d1f0d;
+    border-radius: 6px; cursor: pointer; display: flex;
+    justify-content: space-between; align-items: center;
+    border: 1px solid transparent;
+  }
+  .search-item:hover { border-color: #66bb6a; }
+  .search-item .s-letter { font-weight: 700; color: #4caf50; font-size: 16px; margin-right: 8px; }
+  .search-item .s-info { flex: 1; }
+  .search-item .s-before { font-size: 11px; color: #81c784; }
+  .search-item .s-after { font-size: 12px; color: #a5d6a7; font-weight: 600; }
+
+  /* ===== PROJECTS MODAL ===== */
+  .project-item {
+    padding: 10px; margin: 4px 0; background: #0d1f0d;
+    border-radius: 6px; cursor: pointer; display: flex;
+    justify-content: space-between; align-items: center;
+    border: 1px solid transparent;
+  }
+  .project-item:hover { border-color: #66bb6a; background: #1b5e20; }
+  .project-item .pname { font-weight: 600; color: #a5d6a7; }
+  .project-item .pinfo { font-size: 11px; color: #81c784; }
+  .project-item .pdel {
+    background: #c62828; color: #fff; border: none; border-radius: 4px;
+    padding: 4px 8px; cursor: pointer; font-size: 11px;
+  }
+  .empty-msg { text-align: center; padding: 20px; color: #81c784; }
+
+  /* ===== WELCOME ===== */
+  #welcome {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+  }
+  #welcome .box {
+    background: linear-gradient(135deg, #1b5e20, #2e7d32);
+    padding: 30px; border-radius: 16px; border: 2px solid #66bb6a;
+    text-align: center; max-width: 500px;
+  }
+  #welcome h1 { font-size: 32px; margin-bottom: 8px; color: #a5d6a7; }
+  #welcome p { color: #81c784; margin-bottom: 20px; }
+  #welcome button {
+    padding: 10px 20px; margin: 6px; border: 1px solid #66bb6a;
+    border-radius: 8px; background: #0d1f0d; color: #e8f5e9;
+    cursor: pointer; font-size: 14px;
+  }
+  #welcome button:hover { background: #66bb6a; color: #0d1f0d; }
+  #welcome input {
+    padding: 8px; border: 1px solid #66bb6a; border-radius: 6px;
+    background: #0d1f0d; color: #e8f5e9; width: 100%; margin-bottom: 10px;
+    font-size: 14px;
+  }
+
+  /* ===== CONTEXT MENU ===== */
+  .ctx-menu {
+    position: fixed; background: #1b5e20; border: 1px solid #66bb6a;
+    border-radius: 6px; padding: 4px; z-index: 8000; min-width: 160px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  }
+  .ctx-menu div {
+    padding: 6px 12px; cursor: pointer; border-radius: 4px;
+    font-size: 13px; color: #e8f5e9;
+  }
+  .ctx-menu div:hover { background: #66bb6a; color: #0d1f0d; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+  ::-webkit-scrollbar-thumb { background: #66bb6a; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ===== TOP BAR ===== -->
+<div id="topbar">
+  <div class="group">
+    <span style="font-size:18px;">📖</span>
+    <strong style="font-size:13px;">Timeline Dictionary</strong>
+  </div>
+  <div class="sep"></div>
+  <div class="group">
+    <button id="btn-paste" title="Paste & Organize Words">📋 Paste & Organize</button>
+  </div>
+  <div class="sep"></div>
+  <div class="group">
+    <button id="btn-master" title="Show Master Card">📊 Master Card</button>
+  </div>
+  <div class="sep"></div>
+  <div class="group">
+    <button id="btn-add" title="Add Custom Card">➕ Add Card</button>
+  </div>
+  <div class="sep"></div>
+  <div class="group">
+    <button id="btn-new" title="New Project">🆕</button>
+    <button id="btn-open" title="Open Project">📂</button>
+    <button id="btn-save" title="Save Project">💾</button>
+    <button id="btn-folder" title="Choose Folder">📁</button>
+    <button id="btn-projects-panel" title="Show All Projects">📋</button>
+  </div>
+  <div class="sep"></div>
+  <div class="group">
+    <label>Name</label>
+    <input type="text" id="project-name" placeholder="Project name..." value="My Dictionary">
+  </div>
+  <div class="sep"></div>
+  <div class="group">
+    <label>🎨</label>
+    <input type="color" id="canvas-color" value="#0d1f0d" title="Canvas color">
+  </div>
+  <div class="sep"></div>
+  <div class="group">
+    <button id="btn-zoom-in" title="Zoom In">🔍+</button>
+    <button id="btn-zoom-out" title="Zoom Out">🔍−</button>
+    <button id="btn-zoom-reset" title="Reset View">⬆️</button>
+  </div>
+  <div class="sep"></div>
+  <div class="group">
+    <label>🔍</label>
+    <input type="text" id="search-input" placeholder="Search words..." style="min-width: 150px;">
+    <button id="btn-search" title="Search">🔎</button>
+  </div>
+  <div class="sep"></div>
+  <div class="group">
+    <button id="btn-clear" title="Clear All Cards">🗑️</button>
+    <button id="btn-export" title="Export JSON">📤</button>
+  </div>
+  <span id="status">✨ Ready</span>
+</div>
+
+<!-- ===== A-Z NAVIGATION ===== -->
+<div id="az-nav">
+  <div class="group">
+    <button data-letter="ALL" class="active">ALL</button>
+  </div>
+  <div class="sep"></div>
+  <div class="group" id="az-buttons">
+    <!-- A-Z buttons will be generated here -->
+  </div>
+</div>
+
+<!-- ===== SEARCH RESULTS ===== -->
+<div id="search-results">
+  <div id="search-results-header">
+    <span>🔍 Search Results</span>
+    <button id="search-close">✅</button>
+  </div>
+  <div id="search-results-list"></div>
+</div>
+
+<!-- ===== CANVAS ===== -->
+<div id="canvas-wrap">
+  <div id="canvas"></div>
+</div>
+
+<!-- ===== PASTE MODAL ===== -->
+<div class="modal-overlay" id="paste-modal">
+  <div class="modal">
+    <h2>📋 Paste & Organize Words</h2>
+    <div class="modal-body">
+      <textarea class="paste-textarea" id="paste-area" placeholder="Paste your words here. Examples:
+disorganised → organized
+colour : color
+utilise - use
+acknowledge : acknowledge (same)
+..."></textarea>
+      <div class="paste-info">
+        <strong>Format Support:</strong> Use →, :, -, or just spaces to separate before/after words. 
+        One pair per line. The system will auto-detect the letter and organize into appropriate cards.
+      </div>
+      <div class="organize-stats" id="organize-stats" style="display:none;">
+        <div class="stat-box">
+          <div class="stat-number" id="stat-new">0</div>
+          <div class="stat-label">New Words</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="stat-updated">0</div>
+          <div class="stat-label">Updated Cards</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="paste-cancel">Cancel</button>
+      <button id="paste-organize">✨ Auto-Organize</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== WELCOME DIALOG ===== -->
+<div id="welcome">
+  <div class="box">
+    <h1>📖 Timeline Dictionary</h1>
+    <p>Create your own English word evolution — track how words change across timelines! 🚀</p>
+    <input type="text" id="welcome-name" placeholder="Enter project name..." value="My First Dictionary">
+    <div>
+      <button id="welcome-new">✨ Start New Dictionary</button>
+      <button id="welcome-open">📂 Open Existing</button>
+    </div>
+    <p style="font-size:11px; margin-top:16px;">💡 Tip: Pick a folder to save your dictionaries permanently in JSON format.</p>
+  </div>
+</div>
+
+<!-- ===== PROJECTS MODAL ===== -->
+<div class="modal-overlay" id="projects-modal">
+  <div class="modal">
+    <h2>📂 Projects</h2>
+    <div class="modal-body" id="projects-list"></div>
+    <div class="modal-actions">
+      <button id="modal-new">🆕 New Project</button>
+      <button id="modal-close">✅ Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   TIMELINE DICTIONARY — Word Evolution Canvas
+   ============================================================ */
+
+const STATE = {
+  projectName: 'My Dictionary',
+  canvasColor: '#0d1f0d',
+  cards: [],
+  masterCard: null,
+  pan: { x: 0, y: 0 },
+  zoom: 1,
+  nextId: 1,
+  nextZ: 10,
+  folderHandle: null,
+  currentFileHandle: null,
+  lastUsedColor: '#101f00',
+  currentFilter: 'ALL',
+  processedWords: new Set(),
+};
+
+const $ = (s) => document.querySelector(s);
+const canvas = $('#canvas');
+const canvasWrap = $('#canvas-wrap');
+const statusEl = $('#status');
+
+let autoSaveTimer = null;
+
+function setStatus(msg) {
+  statusEl.textContent = msg;
+  clearTimeout(setStatus._t);
+  setStatus._t = setTimeout(() => statusEl.textContent = '✨ Ready', 2500);
+}
+
+function autoSaveProject() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    saveProject(true);
+  }, 1000);
+}
+
+/* ============================================================
+   GENERATE A-Z NAVIGATION BUTTONS
+   ============================================================ */
+function generateAZButtons() {
+  const container = $('#az-buttons');
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  
+  letters.forEach(letter => {
+    const btn = document.createElement('button');
+    btn.textContent = letter;
+    btn.dataset.letter = letter;
+    btn.addEventListener('click', () => filterByLetter(letter));
+    container.appendChild(btn);
+  });
+}
+
+function filterByLetter(letter) {
+  STATE.currentFilter = letter;
+  
+  document.querySelectorAll('#az-nav button').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.letter === letter) {
+      btn.classList.add('active');
+    }
+  });
+  
+  STATE.cards.forEach(card => {
+    const el = canvas.querySelector(`[data-id="${card.id}"]`);
+    if (!el) return;
+    
+    if (card.isMaster) {
+      el.style.display = letter === 'ALL' ? 'flex' : 'none';
+    } else if (letter === 'ALL' || card.letter === letter) {
+      el.style.display = 'flex';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+  
+  setStatus(`🔤 Showing: ${letter === 'ALL' ? 'All letters' : letter}`);
+}
+
+/* ============================================================
+   CANVAS PAN & ZOOM
+   ============================================================ */
+let isPanning = false, panStart = null;
+
+function applyTransform() {
+  canvas.style.transform = `translate(${STATE.pan.x}px, ${STATE.pan.y}px) scale(${STATE.zoom})`;
+}
+
+canvasWrap.addEventListener('mousedown', (e) => {
+  if (e.target !== canvasWrap && e.target !== canvas) return;
+  isPanning = true;
+  panStart = { x: e.clientX - STATE.pan.x, y: e.clientY - STATE.pan.y };
+  canvasWrap.classList.add('panning');
+  deselectAll();
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (isPanning && panStart) {
+    STATE.pan.x = e.clientX - panStart.x;
+    STATE.pan.y = e.clientY - panStart.y;
+    applyTransform();
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  isPanning = false;
+  panStart = null;
+  canvasWrap.classList.remove('panning');
+});
+
+function zoomAt(delta, centerX, centerY) {
+  const oldZoom = STATE.zoom;
+  const newZoom = Math.max(0.1, Math.min(5, oldZoom + delta));
+  if (newZoom === oldZoom) return;
+  
+  const canvasX = (centerX - STATE.pan.x) / oldZoom;
+  const canvasY = (centerY - STATE.pan.y) / oldZoom;
+  
+  STATE.zoom = newZoom;
+  STATE.pan.x = centerX - canvasX * STATE.zoom;
+  STATE.pan.y = centerY - canvasY * STATE.zoom;
+  
+  applyTransform();
+}
+
+canvasWrap.addEventListener('wheel', (e) => {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    const rect = canvasWrap.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    zoomAt(delta, cx, cy);
+    return;
+  }
+
+  e.preventDefault();
+  let dx = e.deltaX;
+  let dy = e.deltaY;
+  
+  if (e.deltaMode === 1) { dx *= 20; dy *= 20; } 
+  else if (e.deltaMode === 2) { dx *= canvasWrap.clientWidth; dy *= canvasWrap.clientHeight; }
+  
+  if (e.shiftKey) { const temp = dx; dx = dy; dy = temp; }
+  
+  STATE.pan.x -= dx;
+  STATE.pan.y -= dy;
+  applyTransform();
+}, { passive: false });
+
+$('#btn-zoom-in').onclick = () => { 
+  const rect = canvasWrap.getBoundingClientRect();
+  zoomAt(0.1, rect.width / 2, rect.height / 2);
+};
+$('#btn-zoom-out').onclick = () => { 
+  const rect = canvasWrap.getBoundingClientRect();
+  zoomAt(-0.1, rect.width / 2, rect.height / 2);
+};
+$('#btn-zoom-reset').onclick = () => { 
+  STATE.zoom = 1; 
+  STATE.pan = {x:0, y:0}; 
+  applyTransform(); 
+};
+
+$('#canvas-color').addEventListener('input', (e) => {
+  STATE.canvasColor = e.target.value;
+  canvasWrap.style.background = STATE.canvasColor;
+  autoSaveProject();
+});
+
+/* ============================================================
+   PASTE & ORGANIZE FUNCTIONALITY
+   ============================================================ */
+function parsePastedText(text) {
+  const lines = text.split('\n');
+  const wordPairs = [];
+  
+  lines.forEach(line => {
+    line = line.trim();
+    if (!line) return;
+    
+    let before = '', after = '';
+    
+    // Try different separators
+    if (line.includes('→')) {
+      [before, after] = line.split('→').map(s => s.trim());
+    } else if (line.includes(':')) {
+      [before, after] = line.split(':').map(s => s.trim());
+    } else if (line.includes('-')) {
+      [before, after] = line.split('-').map(s => s.trim());
+    } else {
+      // Try space separation (first word is before, rest is after)
+      const parts = line.split(/\s+/);
+      if (parts.length >= 2) {
+        before = parts[0];
+        after = parts.slice(1).join(' ');
+      } else {
+        before = line;
+        after = line;
+      }
+    }
+    
+    if (before && after) {
+      wordPairs.push({ before, after });
+    }
+  });
+  
+  return wordPairs;
+}
+
+function getLetterFromWord(word) {
+  if (!word) return 'A';
+  const firstChar = word.charAt(0).toUpperCase();
+  if (/[A-Z]/.test(firstChar)) {
+    return firstChar;
+  }
+  return 'A'; // Default to A for special characters
+}
+
+function organizeWords(wordPairs) {
+  let newWords = 0;
+  let updatedCards = 0;
+  const cardsByLetter = {};
+  
+  // Group existing cards by letter
+  STATE.cards.forEach(card => {
+    if (!card.isMaster && card.letter) {
+      cardsByLetter[card.letter] = card;
+    }
+  });
+  
+  // Process each word pair
+  wordPairs.forEach(pair => {
+    const letter = getLetterFromWord(pair.before);
+    
+    if (!cardsByLetter[letter]) {
+      // Create new card for this letter
+      const newCard = createCard({
+        letter: letter,
+        beforeWord: pair.before,
+        afterWord: pair.after,
+        notes: ''
+      });
+      cardsByLetter[letter] = newCard;
+      newWords++;
+    } else {
+      // Update existing card
+      const card = cardsByLetter[letter];
+      const beforeList = card.beforeWord ? card.beforeWord.split('\n').filter(w => w.trim()) : [];
+      const afterList = card.afterWord ? card.afterWord.split('\n').filter(w => w.trim()) : [];
+      
+      // Add if not already present
+      if (!beforeList.includes(pair.before)) {
+        beforeList.push(pair.before);
+        afterList.push(pair.after);
+        card.beforeWord = beforeList.join('\n');
+        card.afterWord = afterList.join('\n');
+        updatedCards++;
+        
+        // Update DOM if exists
+        const el = canvas.querySelector(`[data-id="${card.id}"]`);
+        if (el) {
+          const beforeEl = el.querySelector('[data-field="beforeWord"]');
+          const afterEl = el.querySelector('[data-field="afterWord"]');
+          if (beforeEl) beforeEl.value = card.beforeWord;
+          if (afterEl) afterEl.value = card.afterWord;
+        }
+      }
+    }
+    
+    // Mark as processed
+    STATE.processedWords.add(`${pair.before}→${pair.after}`);
+  });
+  
+  // Update master card if exists
+  if (STATE.masterCard) {
+    updateMasterCard();
+  }
+  
+  // Show stats
+  $('#stat-new').textContent = newWords;
+  $('#stat-updated').textContent = updatedCards;
+  $('#organize-stats').style.display = 'grid';
+  
+  setStatus(`✨ Organized: ${newWords} new cards, ${updatedCards} updated`);
+  autoSaveProject();
+}
+
+/* ============================================================
+   MASTER CARD FUNCTIONALITY
+   ============================================================ */
+function createMasterCard() {
+  // Remove existing master card if any
+  if (STATE.masterCard) {
+    const existing = canvas.querySelector(`[data-id="${STATE.masterCard.id}"]`);
+    if (existing) existing.remove();
+  }
+  
+  const masterCard = {
+    id: STATE.nextId++,
+    isMaster: true,
+    letter: '★',
+    x: 100 - STATE.pan.x/STATE.zoom,
+    y: 100 - STATE.pan.y/STATE.zoom,
+    w: 600,
+    h: 600,
+    color: '#1b5e20',
+    title: '📊 Master Word List',
+    zIndex: STATE.nextZ++,
+    searchIndex: 0,
+    searchResults: []
+  };
+  
+  STATE.masterCard = masterCard;
+  STATE.cards.push(masterCard);
+  renderMasterCard(masterCard);
+  autoSaveProject();
+  return masterCard;
+}
+
+function renderMasterCard(c) {
+  const el = document.createElement('div');
+  el.className = 'dict-card master-card';
+  el.dataset.id = c.id;
+  el.style.left = c.x + 'px';
+  el.style.top = c.y + 'px';
+  el.style.width = c.w + 'px';
+  el.style.height = c.h + 'px';
+  el.style.background = c.color;
+  el.style.color = '#e8f5e9';
+  el.style.zIndex = c.zIndex;
+
+  el.innerHTML = `
+    <div class="dict-card-header">
+      <div class="dict-card-letter">${c.letter}</div>
+      <input class="dict-card-title" value="${escapeHtml(c.title)}" title="Click to rename">
+      <button class="dict-card-btn" data-act="refresh" title="Refresh List">🔄</button>
+      <button class="dict-card-btn" data-act="delete" title="Close Master Card">✕</button>
+    </div>
+    <div class="dict-card-body">
+      <div class="master-search-box">
+        <input type="text" class="master-search-input" id="master-search-input" placeholder="Search all words...">
+        <button class="master-nav-btn" id="master-prev" title="Previous">◀</button>
+        <button class="master-nav-btn" id="master-next" title="Next">▶</button>
+      </div>
+      <div class="master-word-list" id="master-word-list"></div>
+      <div class="master-stats" id="master-stats">Loading...</div>
+    </div>
+    <div class="resize-handle resize-n"></div><div class="resize-handle resize-s"></div>
+    <div class="resize-handle resize-e"></div><div class="resize-handle resize-w"></div>
+    <div class="resize-handle resize-ne"></div><div class="resize-handle resize-nw"></div>
+    <div class="resize-handle resize-se"></div><div class="resize-handle resize-sw"></div>
+  `;
+
+  canvas.appendChild(el);
+  attachMasterCardEvents(el, c);
+  updateMasterCardList(c);
+  return el;
+}
+
+function updateMasterCard() {
+  if (!STATE.masterCard) return;
+  updateMasterCardList(STATE.masterCard);
+}
+
+function updateMasterCardList(c) {
+  const listEl = $('#master-word-list');
+  const statsEl = $('#master-stats');
+  if (!listEl || !statsEl) return;
+  
+  listEl.innerHTML = '';
+  
+  // Collect all word pairs from all cards
+  const allWords = [];
+  STATE.cards.forEach(card => {
+    if (card.isMaster || !card.letter) return;
+    
+    const beforeList = card.beforeWord ? card.beforeWord.split('\n').filter(w => w.trim()) : [];
+    const afterList = card.afterWord ? card.afterWord.split('\n').filter(w => w.trim()) : [];
+    
+    beforeList.forEach((before, idx) => {
+      const after = afterList[idx] || '';
+      allWords.push({
+        letter: card.letter,
+        before: before,
+        after: after,
+        cardId: card.id
+      });
+    });
+  });
+  
+  // Sort by letter then by before word
+  allWords.sort((a, b) => {
+    if (a.letter !== b.letter) return a.letter.localeCompare(b.letter);
+    return a.before.localeCompare(b.before);
+  });
+  
+  // Render list
+  allWords.forEach((word, index) => {
+    const item = document.createElement('div');
+    item.className = 'master-word-item';
+    item.dataset.index = index;
+    item.innerHTML = `
+      <div class="master-word-pair">
+        <span class="master-word-letter">${word.letter}</span>
+        <span class="master-word-before">${escapeHtml(word.before)}</span>
+        <span class="master-word-arrow">→</span>
+        <span class="master-word-after">${escapeHtml(word.after)}</span>
+      </div>
+    `;
+    item.addEventListener('click', () => {
+      // Focus the card this word belongs to
+      const card = STATE.cards.find(c => c.id === word.cardId);
+      if (card) {
+        focusCard(card);
+      }
+    });
+    listEl.appendChild(item);
+  });
+  
+  // Update stats
+  const totalWords = allWords.length;
+  const uniqueLetters = new Set(allWords.map(w => w.letter)).size;
+  statsEl.textContent = `Total: ${totalWords} word pairs | Letters: ${uniqueLetters}/26 | Processed: ${STATE.processedWords.size}`;
+  
+  // Store for search
+  c.allWords = allWords;
+  c.searchResults = [];
+  c.searchIndex = 0;
+}
+
+function attachMasterCardEvents(el, c) {
+  el.addEventListener('mousedown', () => bringToFront(c));
+
+  const header = el.querySelector('.dict-card-header');
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+    e.preventDefault();
+    startDrag(e, c, el);
+  });
+
+  const titleInp = el.querySelector('.dict-card-title');
+  titleInp.addEventListener('input', () => { c.title = titleInp.value; autoSaveProject(); });
+  titleInp.addEventListener('mousedown', (e) => e.stopPropagation());
+
+  el.querySelectorAll('.resize-handle').forEach(handle => {
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const direction = handle.className.replace('resize-handle resize-', '');
+      startResize(e, c, el, direction);
+    });
+  });
+
+  // Search functionality
+  const searchInput = $('#master-search-input');
+  const prevBtn = $('#master-prev');
+  const nextBtn = $('#master-next');
+  
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.trim().toLowerCase();
+    if (!query) {
+      // Clear highlights
+      el.querySelectorAll('.master-word-item').forEach(item => {
+        item.classList.remove('highlighted');
+      });
+      c.searchResults = [];
+      c.searchIndex = 0;
+      return;
+    }
+    
+    // Search in all words
+    c.searchResults = [];
+    c.allWords.forEach((word, idx) => {
+      if (word.before.toLowerCase().includes(query) || 
+          word.after.toLowerCase().includes(query) ||
+          word.letter.toLowerCase().includes(query)) {
+        c.searchResults.push(idx);
+      }
+    });
+    
+    c.searchIndex = 0;
+    highlightSearchResult(el, c);
+  });
+  
+  prevBtn.addEventListener('click', () => {
+    if (c.searchResults.length === 0) return;
+    c.searchIndex = (c.searchIndex - 1 + c.searchResults.length) % c.searchResults.length;
+    highlightSearchResult(el, c);
+  });
+  
+  nextBtn.addEventListener('click', () => {
+    if (c.searchResults.length === 0) return;
+    c.searchIndex = (c.searchIndex + 1) % c.searchResults.length;
+    highlightSearchResult(el, c);
+  });
+  
+  // Refresh button
+  el.querySelector('[data-act="refresh"]').addEventListener('click', () => {
+    updateMasterCardList(c);
+    setStatus('🔄 Master list refreshed');
+  });
+  
+  // Delete button
+  el.querySelector('[data-act="delete"]').addEventListener('click', () => {
+    if (confirm('Close Master Card?')) {
+      el.remove();
+      STATE.masterCard = null;
+      STATE.cards = STATE.cards.filter(card => !card.isMaster);
+      autoSaveProject();
+    }
+  });
+}
+
+function highlightSearchResult(el, c) {
+  // Clear previous highlights
+  el.querySelectorAll('.master-word-item').forEach(item => {
+    item.classList.remove('highlighted');
+  });
+  
+  if (c.searchResults.length === 0) return;
+  
+  const currentIndex = c.searchResults[c.searchIndex];
+  const items = el.querySelectorAll('.master-word-item');
+  
+  if (items[currentIndex]) {
+    items[currentIndex].classList.add('highlighted');
+    items[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  
+  setStatus(`🔍 Result ${c.searchIndex + 1} of ${c.searchResults.length}`);
+}
+
+/* ============================================================
+   DICTIONARY CARD MANAGEMENT
+   ============================================================ */
+function createCard(data = {}) {
+  const id = data.id || STATE.nextId++;
+  const card = {
+    id,
+    letter: data.letter || 'A',
+    x: data.x ?? (100 + Math.random()*200 - STATE.pan.x/STATE.zoom),
+    y: data.y ?? (100 + Math.random()*200 - STATE.pan.y/STATE.zoom),
+    w: data.w || 500,
+    h: data.h || 450,
+    color: data.color || STATE.lastUsedColor || '#1b5e20',
+    title: data.title || `Letter ${data.letter || 'A'}`,
+    beforeWord: data.beforeWord || '',
+    afterWord: data.afterWord || '',
+    notes: data.notes || '',
+    zIndex: data.zIndex || STATE.nextZ++,
+  };
+  STATE.cards.push(card);
+  renderCard(card);
+  autoSaveProject();
+  return card;
+}
+
+function renderCard(c) {
+  const el = document.createElement('div');
+  el.className = 'dict-card';
+  el.dataset.id = c.id;
+  el.style.left = c.x + 'px';
+  el.style.top = c.y + 'px';
+  el.style.width = c.w + 'px';
+  el.style.height = c.h + 'px';
+  el.style.background = c.color;
+  el.style.color = isLight(c.color) ? '#1b5e20' : '#fff';
+  el.style.zIndex = c.zIndex;
+
+  el.innerHTML = `
+    <div class="dict-card-header">
+      <div class="dict-card-letter">${c.letter}</div>
+      <input class="dict-card-title" value="${escapeHtml(c.title)}" title="Click to rename">
+      <button class="dict-card-btn" data-act="color" title="Change color">🎨</button>
+      <button class="dict-card-btn" data-act="delete" title="Delete card">🗑️</button>
+    </div>
+    <div class="dict-card-body">
+      <div class="timeline-columns">
+        <div class="timeline-section before">
+          <h4>⏮️ BEFORE (Previous English Word)</h4>
+          <textarea class="timeline-input" data-field="beforeWord" placeholder="Enter old/previous words (one per line)...">${escapeHtml(c.beforeWord)}</textarea>
+        </div>
+        <div class="timeline-section after">
+          <h4>⏭️ AFTER (New Word/Character)</h4>
+          <textarea class="timeline-input" data-field="afterWord" placeholder="Enter new words/characters (one per line)...">${escapeHtml(c.afterWord)}</textarea>
+        </div>
+      </div>
+      <div class="notes-section">
+        <h4>📝 NOTES & DEFINITIONS</h4>
+        <textarea class="notes-input" data-field="notes" placeholder="Add notes, definitions, or context...">${escapeHtml(c.notes)}</textarea>
+      </div>
+    </div>
+    <div class="resize-handle resize-n"></div><div class="resize-handle resize-s"></div>
+    <div class="resize-handle resize-e"></div><div class="resize-handle resize-w"></div>
+    <div class="resize-handle resize-ne"></div><div class="resize-handle resize-nw"></div>
+    <div class="resize-handle resize-se"></div><div class="resize-handle resize-sw"></div>
+  `;
+
+  canvas.appendChild(el);
+  attachCardEvents(el, c);
+  return el;
+}
+
+function attachCardEvents(el, c) {
+  el.addEventListener('mousedown', () => bringToFront(c));
+
+  const header = el.querySelector('.dict-card-header');
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'TEXTAREA') return;
+    e.preventDefault();
+    startDrag(e, c, el);
+  });
+
+  const titleInp = el.querySelector('.dict-card-title');
+  titleInp.addEventListener('input', () => { c.title = titleInp.value; autoSaveProject(); });
+  titleInp.addEventListener('mousedown', (e) => e.stopPropagation());
+
+  el.querySelectorAll('.resize-handle').forEach(handle => {
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const direction = handle.className.replace('resize-handle resize-', '');
+      startResize(e, c, el, direction);
+    });
+  });
+
+  el.querySelectorAll('[data-field]').forEach(textarea => {
+    textarea.addEventListener('input', () => {
+      const field = textarea.dataset.field;
+      c[field] = textarea.value;
+      autoSaveProject();
+      
+      // Update master card if it exists
+      if (STATE.masterCard) {
+        updateMasterCard();
+      }
+    });
+    textarea.addEventListener('mousedown', (e) => e.stopPropagation());
+  });
+
+  el.querySelectorAll('[data-act]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const act = btn.dataset.act;
+      if (act === 'color') {
+        const inp = document.createElement('input');
+        inp.type = 'color'; inp.value = c.color;
+        inp.addEventListener('input', () => {
+          c.color = inp.value;
+          STATE.lastUsedColor = inp.value;
+          el.style.background = c.color;
+          el.style.color = isLight(c.color) ? '#1b5e20' : '#fff'; autoSaveProject();
+        });
+        inp.click();
+      } else if (act === 'delete') {
+        if (confirm('Delete this card?')) {
+          deleteCard(c.id);
+        }
+      } else if (act === 'refresh') {
+        if (STATE.masterCard) updateMasterCard();
+      }
+    });
+  });
+}
+
+function bringToFront(c) {
+  c.zIndex = STATE.nextZ++;
+  const el = canvas.querySelector(`[data-id="${c.id}"]`);
+  if (el) el.style.zIndex = c.zIndex;
+}
+
+function startDrag(e, c, el) {
+  const startX = e.clientX, startY = e.clientY;
+  const origX = c.x, origY = c.y;
+  function move(ev) {
+    c.x = origX + (ev.clientX - startX) / STATE.zoom;
+    c.y = origY + (ev.clientY - startY) / STATE.zoom;
+    el.style.left = c.x + 'px'; el.style.top = c.y + 'px';
+  }
+  function up() { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); autoSaveProject(); }
+  window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+}
+
+function startResize(e, c, el, direction) {
+  const startX = e.clientX, startY = e.clientY;
+  const origX = c.x, origY = c.y, origW = c.w, origH = c.h;
+  function move(ev) {
+    const dx = (ev.clientX - startX) / STATE.zoom; const dy = (ev.clientY - startY) / STATE.zoom;
+    if (direction.includes('e')) c.w = Math.max(450, origW + dx);
+    if (direction.includes('w')) { const newW = Math.max(450, origW - dx); c.x = origX + (origW - newW); c.w = newW; }
+    if (direction.includes('s')) c.h = Math.max(400, origH + dy);
+    if (direction.includes('n')) { const newH = Math.max(400, origH - dy); c.y = origY + (origH - newH); c.h = newH; }
+    el.style.left = c.x + 'px'; el.style.top = c.y + 'px'; el.style.width = c.w + 'px'; el.style.height = c.h + 'px';
+  }
+  function up() { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); autoSaveProject(); }
+  window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+}
+
+function deleteCard(id) {
+  STATE.cards = STATE.cards.filter(c => c.id !== id);
+  const el = canvas.querySelector(`[data-id="${id}"]`);
+  if (el) el.remove();
+  if (STATE.masterCard) updateMasterCard();
+  setStatus('🗑️ Card deleted');
+  autoSaveProject();
+}
+
+function deselectAll() {
+  canvas.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'));
+}
+
+function focusCard(card) {
+  const el = canvas.querySelector(`[data-id="${card.id}"]`);
+  if (!el) return;
+
+  const rect = canvasWrap.getBoundingClientRect();
+  const cardRect = el.getBoundingClientRect();
+  
+  const targetX = rect.width / 2 - (card.x * STATE.zoom + card.w * STATE.zoom / 2);
+  const targetY = rect.height / 2 - (card.y * STATE.zoom + card.h * STATE.zoom / 2);
+
+  STATE.pan.x = targetX;
+  STATE.pan.y = targetY;
+  applyTransform();
+
+  el.classList.add('selected');
+  setTimeout(() => el.classList.remove('selected'), 2000);
+
+  bringToFront(card);
+  setStatus(`🎯 Focused on ${card.letter}`);
+}
+
+/* ============================================================
+   SEARCH FUNCTIONALITY
+   ============================================================ */
+function performSearch() {
+  const query = $('#search-input').value.trim().toLowerCase();
+  if (!query) {
+    $('#search-results').classList.remove('show');
+    return;
+  }
+
+  const results = STATE.cards.filter(card => {
+    if (card.isMaster) return false;
+    return card.letter.toLowerCase().includes(query) ||
+           card.beforeWord.toLowerCase().includes(query) ||
+           card.afterWord.toLowerCase().includes(query) ||
+           card.notes.toLowerCase().includes(query) ||
+           card.title.toLowerCase().includes(query);
+  });
+
+  showSearchResults(results);
+}
+
+function showSearchResults(results) {
+  const list = $('#search-results-list');
+  list.innerHTML = '';
+
+  if (results.length === 0) {
+    list.innerHTML = '<div style="padding:20px; text-align:center; color:#81c784;">No results found</div>';
+  } else {
+    results.forEach(card => {
+      const item = document.createElement('div');
+      item.className = 'search-item';
+      item.innerHTML = `
+        <div class="s-letter">${card.letter}</div>
+        <div class="s-info">
+          <div class="s-after">${escapeHtml(card.afterWord || '(No new word)')}</div>
+          <div class="s-before">← ${escapeHtml(card.beforeWord || '(No old word)')}</div>
+        </div>
+      `;
+      item.addEventListener('click', () => {
+        focusCard(card);
+        $('#search-results').classList.remove('show');
+      });
+      list.appendChild(item);
+    });
+  }
+
+  $('#search-results').classList.add('show');
+}
+
+$('#btn-search').addEventListener('click', performSearch);
+$('#search-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') performSearch();
+  if (e.key === 'Escape') $('#search-results').classList.remove('show');
+});
+$('#search-close').addEventListener('click', () => {
+  $('#search-results').classList.remove('show');
+  $('#search-input').value = '';
+});
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+function isLight(hex) {
+  const c = hex.replace('#','');
+  const r = parseInt(c.substr(0,2),16);
+  const g = parseInt(c.substr(2,2),16);
+  const b = parseInt(c.substr(4,2),16);
+  return (r*299 + g*587 + b*114) / 1000 > 140;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ============================================================
+   PROJECT SAVE / LOAD
+   ============================================================ */
+function serializeProject() {
+  return {
+    name: STATE.projectName,
+    canvasColor: STATE.canvasColor,
+    nextId: STATE.nextId,
+    nextZ: STATE.nextZ,
+    pan: STATE.pan,
+    zoom: STATE.zoom,
+    cards: STATE.cards.filter(c => !c.isMaster), // Don't save master card
+    processedWords: Array.from(STATE.processedWords),
+    lastUsedColor: STATE.lastUsedColor,
+    savedAt: new Date().toISOString(),
+  };
+}
+
+function loadProject(data) {
+  canvas.innerHTML = '';
+  
+  STATE.cards = [];
+  STATE.processedWords = new Set(data.processedWords || []);
+  STATE.projectName = data.name || 'My Dictionary';
+  STATE.canvasColor = data.canvasColor || '#0d1f0d';
+  STATE.nextId = data.nextId || 1;
+  STATE.nextZ = data.nextZ || 10;
+  STATE.pan = data.pan || {x:0,y:0};
+  STATE.zoom = data.zoom || 1;
+  STATE.lastUsedColor = data.lastUsedColor || '#f1f8e9';
+  $('#project-name').value = STATE.projectName;
+  $('#canvas-color').value = STATE.canvasColor;
+  canvasWrap.style.background = STATE.canvasColor;
+  applyTransform();
+  (data.cards || []).forEach(c => createCard(c));
+  
+  setStatus('📂 Project loaded: ' + STATE.projectName);
+}
+
+async function saveProject(silent = false) {
+  const data = serializeProject();
+  const json = JSON.stringify(data, null, 2);
+
+  if (STATE.folderHandle) {
+    try {
+      const fname = STATE.projectName.replace(/[^\w\- ]/g,'_') + '.json';
+      const fh = await STATE.folderHandle.getFileHandle(fname, { create: true });
+      const w = await fh.createWritable();
+      await w.write(json);
+      await w.close();
+      STATE.currentFileHandle = fh;
+      if (!silent) setStatus('💾 Saved to folder: ' + fname);
+      return;
+    } catch (err) {
+      console.warn('FS save failed, falling back:', err);
+    }
+  }
+  const projects = JSON.parse(localStorage.getItem('timelinedict_projects') || '{}');
+  projects[STATE.projectName] = data;
+  localStorage.setItem('timelinedict_projects', JSON.stringify(projects));
+  if (!silent) setStatus('💾 Saved locally: ' + STATE.projectName);
+}
+
+async function pickFolder() {
+  if (!window.showDirectoryPicker) {
+    alert('⚠️ Your browser does not support folder access. Projects will be saved in browser storage.');
+    return;
+  }
+  try {
+    STATE.folderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    localStorage.setItem('timelinedict_folder_name', STATE.folderHandle.name);
+    setStatus('📁 Folder set: ' + STATE.folderHandle.name);
+    autoSaveProject();
+  } catch (e) {
+    console.warn('Folder pick cancelled');
+  }
+}
+
+async function loadProjectsList() {
+  const projects = {};
+  const local = JSON.parse(localStorage.getItem('timelinedict_projects') || '{}');
+  Object.entries(local).forEach(([k,v]) => { projects[k] = { source: 'local', data: v }; });
+
+  if (STATE.folderHandle) {
+    try {
+      for await (const [name, handle] of STATE.folderHandle.entries()) {
+        if (handle.kind === 'file' && name.endsWith('.json')) {
+          try {
+            const f = await handle.getFile();
+            const txt = await f.text();
+            const d = JSON.parse(txt);
+            projects[d.name || name] = { source: 'folder', data: d, handle };
+          } catch(e) {}
+        }
+      }
+    } catch(e) { console.warn(e); }
+  }
+  return projects;
+}
+
+async function showProjectsModal() {
+  const list = $('#projects-list');
+  list.innerHTML = '<div class="empty-msg">⏳ Loading...</div>';
+  $('#projects-modal').classList.add('show');
+  const projects = await loadProjectsList();
+  const keys = Object.keys(projects);
+  if (keys.length === 0) {
+    list.innerHTML = '<div class="empty-msg">📭 No projects yet. Create one! ✨</div>';
+    return;
+  }
+  list.innerHTML = '';
+  keys.forEach(k => {
+    const p = projects[k];
+    const item = document.createElement('div');
+    item.className = 'project-item';
+    const cards = (p.data.cards || []).length;
+    const saved = p.data.savedAt ? new Date(p.data.savedAt).toLocaleString() : 'unknown';
+    item.innerHTML = `
+      <div>
+        <div class="pname">📖 ${escapeHtml(k)}</div>
+        <div class="pinfo">${cards} card(s) • ${p.source === 'folder' ? '📁 Folder' : '💻 Local'} • ${saved}</div>
+      </div>
+      <div>
+        <button class="pdel" data-del="${escapeHtml(k)}">🗑️</button>
+      </div>
+    `;
+    item.addEventListener('click', (e) => {
+      if (e.target.dataset.del) return;
+      loadProject(p.data);
+      if (p.handle) STATE.currentFileHandle = p.handle;
+      $('#projects-modal').classList.remove('show');
+    });
+    item.querySelector('.pdel').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Delete project "${k}"?`)) return;
+      if (p.source === 'folder' && p.handle) {
+        try { await STATE.folderHandle.removeEntry(p.handle.name); } catch(err){}
+      }
+      const local = JSON.parse(localStorage.getItem('timelinedict_projects') || '{}');
+      delete local[k];
+      localStorage.setItem('timelinedict_projects', JSON.stringify(local));
+      showProjectsModal();
+    });
+    list.appendChild(item);
+  });
+}
+
+/* ============================================================
+   TOP BAR HANDLERS
+   ============================================================ */
+$('#btn-paste').onclick = () => {
+  $('#paste-modal').classList.add('show');
+  $('#paste-area').focus();
+  $('#organize-stats').style.display = 'none';
+};
+
+$('#paste-cancel').onclick = () => {
+  $('#paste-modal').classList.remove('show');
+};
+
+$('#paste-organize').onclick = () => {
+  const text = $('#paste-area').value;
+  if (!text.trim()) {
+    alert('Please paste some words first!');
+    return;
+  }
+  
+  const wordPairs = parsePastedText(text);
+  if (wordPairs.length === 0) {
+    alert('No valid word pairs found. Please check the format.');
+    return;
+  }
+  
+  organizeWords(wordPairs);
+  
+  // Clear textarea after organizing
+  setTimeout(() => {
+    $('#paste-area').value = '';
+    $('#paste-modal').classList.remove('show');
+  }, 2000);
+};
+
+$('#btn-master').onclick = () => {
+  if (!STATE.masterCard) {
+    createMasterCard();
+    setStatus('📊 Master card created');
+  } else {
+    focusCard(STATE.masterCard);
+  }
+};
+
+$('#btn-add').onclick = () => {
+  const letter = prompt('Enter letter for this card (A-Z):', 'A');
+  if (!letter || !/^[A-Za-z]$/.test(letter)) {
+    alert('Please enter a single letter A-Z');
+    return;
+  }
+  const c = createCard({ letter: letter.toUpperCase() });
+  setStatus(`➕ Card added for letter ${c.letter}`);
+};
+$('#btn-save').onclick = () => saveProject(false);
+$('#btn-open').onclick = showProjectsModal;
+$('#btn-projects-panel').onclick = showProjectsModal;
+$('#btn-folder').onclick = pickFolder;
+$('#btn-new').onclick = () => {
+  if (!confirm('🆕 Start a new project? Unsaved changes will be lost.')) return;
+  canvas.innerHTML = '';
+  STATE.cards = [];
+  STATE.masterCard = null;
+  STATE.processedWords.clear();
+  STATE.nextId = 1;
+  STATE.nextZ = 10;
+  STATE.pan = {x:0,y:0};
+  STATE.zoom = 1;
+  STATE.projectName = 'My Dictionary';
+  STATE.lastUsedColor = '#f1f8e9';
+  $('#project-name').value = '';
+  applyTransform();
+  setStatus('🆕 New project');
+  autoSaveProject();
+};
+$('#btn-clear').onclick = () => {
+  if (!confirm('⚠️ Remove all cards from this project?')) return;
+  canvas.innerHTML = '';
+  STATE.cards = [];
+  STATE.masterCard = null;
+  STATE.processedWords.clear();
+  setStatus('🗑️ Cleared');
+  autoSaveProject();
+};
+$('#btn-export').onclick = () => {
+  const data = serializeProject();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (STATE.projectName || 'dictionary') + '.json';
+  a.click();
+  setStatus('📤 Exported to JSON');
+};
+$('#project-name').addEventListener('input', (e) => {
+  STATE.projectName = e.target.value || 'My Dictionary';
+  autoSaveProject();
+});
+
+$('#modal-close').onclick = () => $('#projects-modal').classList.remove('show');
+$('#modal-new').onclick = () => {
+  $('#projects-modal').classList.remove('show');
+  $('#btn-new').click();
+};
+
+/* ============================================================
+   WELCOME DIALOG
+   ============================================================ */
+$('#welcome-new').onclick = async () => {
+  STATE.projectName = $('#welcome-name').value || 'My Dictionary';
+  $('#project-name').value = STATE.projectName;
+  $('#welcome').style.display = 'none';
+  
+  if (window.showDirectoryPicker) {
+    try {
+      if (confirm('📁 Would you like to pick a folder to save your JSON files?\n(Click Cancel to use browser storage)')) {
+        await pickFolder();
+      }
+    } catch(e){}
+  }
+  
+  createInitialAZCards();
+  setStatus('✨ Welcome to Timeline Dictionary!');
+  autoSaveProject();
+};
+$('#welcome-open').onclick = async () => {
+  $('#welcome').style.display = 'none';
+  if (window.showDirectoryPicker) {
+    try {
+      if (confirm('📁 Pick a folder containing your JSON files?')) {
+        await pickFolder();
+      }
+    } catch(e){}
+  }
+  showProjectsModal();
+};
+
+function createInitialAZCards() {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const startX = 100;
+  const startY = 100;
+  const spacing = 550;
+  const cardsPerRow = 4;
+
+  letters.forEach((letter, index) => {
+    const row = Math.floor(index / cardsPerRow);
+    const col = index % cardsPerRow;
+    const x = startX + col * spacing;
+    const y = startY + row * 500;
+
+    createCard({
+      letter: letter,
+      x: x,
+      y: y,
+      title: `Letter ${letter}`,
+      beforeWord: '',
+      afterWord: '',
+      notes: ''
+    });
+  });
+}
+
+/* ============================================================
+   KEYBOARD SHORTCUTS
+   ============================================================ */
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveProject(false);
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+    e.preventDefault();
+    $('#search-input').focus();
+  }
+  if (e.key === 'Escape') {
+    $('#search-results').classList.remove('show');
+    $('#projects-modal').classList.remove('show');
+    $('#paste-modal').classList.remove('show');
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'v' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+    e.preventDefault();
+    $('#btn-paste').click();
+  }
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+generateAZButtons();
+applyTransform();
+canvasWrap.style.background = STATE.canvasColor;
+setStatus('🚀 Timeline Dictionary loaded! Auto-save enabled');
+</script>
+</body>
+</html>
